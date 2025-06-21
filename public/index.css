@@ -1,0 +1,152 @@
+/* Background and main styles from graphs.css */
+main {
+    background: 
+        linear-gradient(rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.349)), /* dark overlay */
+        linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, rgba(226, 201, 141, .65) 100%), /* existing fade */
+        url("wci_banner.png");
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: cover;
+    min-height: 100vh;
+}
+      .navbar {
+      background: linear-gradient(145deg, #111 0%, #1a1a1a 100%);
+      border-bottom: 2px solid #f7f4ea;
+    }
+
+    .navbar-brand {
+      color: #fcf7ea;
+      font-weight: bold;
+      font-size: 1.5rem;
+      padding-right: 10px;
+      
+    }
+
+    .navbar-brand:hover {
+      color: #fad46b;
+    }
+
+    .nav-link {
+      color: #f7f2e5 !important;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+
+    .nav-link:hover {
+      color: #f7cd5a !important;
+    }
+
+    .nav-item{
+        align-items: center;
+    }
+
+    .border-warning {
+    border-color: #eeebe4 !important;
+    }
+
+
+    #upload-btn {
+      background-color: #37c524;
+      border: none;
+      color: rgb(255, 255, 255);
+    }
+
+
+html, body {
+    background-color: #2e2e2e;
+    color: #fff;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Drop zone styles */
+.drop-zone {
+     border: 2px solid #f8f6f1;
+    border-radius: 5px;
+    padding: 40px;
+    text-align: center;
+    min-height: 200px;
+    position: relative;
+    background-color: #1a1a1aa9;
+    color: #ffffff;
+    margin-top: 10%;
+}
+.drop-zone.dragover {
+    background-color: #f0f8ff;
+    border-color: #333;
+    color: #333;
+}
+.drop-zone .file-list {
+    margin-top: 20px;
+    text-align: left;
+}
+.drop-zone .file-list .file-item {
+    margin: 5px 0;
+}
+
+label, #dropLabel {
+    font-size: 30px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* Optional: style the export button */
+#export-csv {
+    margin-left: 20px;
+}
+
+.drop-zone {
+  animation: fadeInUp 0.7s ease-in-out;
+}
+
+.navbar {
+  animation: glow-border 3s infinite alternate;
+  animation: glow-text 3s infinite alternate;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-border {
+  0% {
+    border-color: #ffffff;
+    box-shadow: 0 0 5px #fff;
+  }
+  100% {
+    border-color: #aaaaaa;
+    box-shadow: 0 0 12px #a0a0a0;
+  }
+}
+
+@keyframes glow-nav-border {
+  0% {
+    border-color: #ffffff;
+    box-shadow: 0 0 5px #f3d880;
+  }
+  100% {
+    border-color: #ecdd87;
+    box-shadow: 0 0 20px #a0a0a0;
+  }
+}
+
+@keyframes glow-text {
+  0% {
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  }
+  100% {
+    color: #d3d0d0;
+    text-shadow: 0 0 4px rgba(170, 170, 170, 0.6);
+  }
+}

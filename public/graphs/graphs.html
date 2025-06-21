@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3D Statistics Graph</title>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="graphs.css" />
+
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+  <script src="graphs.js"></script>
+  <!-- update the version number as needed -->
+  <script defer src="/__/firebase/11.8.1/firebase-app-compat.js"></script>
+  <!-- include only the Firebase features as you need -->
+  <script defer src="/__/firebase/11.8.1/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-database-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-functions-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-messaging-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-storage-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-analytics-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-remote-config-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-performance-compat.js"></script>
+  <!-- 
+    initialize the SDK after all desired features are loaded, set useEmulator to false
+    to avoid connecting the SDK to running emulators.
+  -->
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+</head>
+<main>
+<body>
+  <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand pr-3 border-right border-warning" href="#">Onslaught Stats</a>
+    <button class="navbar-toggler bg-dark text-light" type="button" data-toggle="collapse" data-target="#navbarNav">
+      <span class="navbar-toggler-icon">V</span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item"><a class="nav-link" href="../index.html">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="../stats/stats.html">Statistics</a></li>
+        <li class="nav-item"><a class="nav-link" href="graphs.html">Graphs</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h1 class="text-center">3D Player Statistic Graph</h1>
+    
+    <div class="form-group">
+      <label for="select-map">Select Map:</label>
+      <select id="select-map" class="form-control">
+        <option value="all">All Maps</option>
+        <option value="map1">Map 1</option>
+        <option value="map2">Map 2</option>
+        <!-- Add more maps -->
+      </select>
+
+      <label for="x-stat">X-Axis Stat:</label>
+      <select id="x-stat" class="form-control">
+        <option value="kills">Kills</option>
+        <option value="damageDealt">Damage</option>
+        <option value="damageAssistedRadio">Assist</option>
+        <option value="winrate">Win %</option>
+        <option value="comp7PrestigePoints">Prestige Points</option>
+      </select>
+
+      <label for="y-stat">Y-Axis Stat:</label>
+      <select id="y-stat" class="form-control">
+        <option value="kills">Kills</option>
+        <option value="damageDealt">Damage</option>
+        <option value="damageAssistedRadio">Assist</option>
+        <option value="winrate">Win %</option>
+        <option value="comp7PrestigePoints">Prestige Points</option>
+      </select>
+
+      <label for="z-stat">Z-Axis Stat:</label>
+      <select id="z-stat" class="form-control">
+        <option value="kills">Kills</option>
+        <option value="damageDealt">Damage</option>
+        <option value="damageAssistedRadio">Assist</option>
+        <option value="winrate">Win %</option>
+        <option value="comp7PrestigePoints">Prestige Points</option>
+      </select>
+
+      <button id = "genButton" class="btn btn-primary mt-3">Generate Graph</button>
+    </div>
+  </div>
+
+  <div class="container mt-4">
+    <div id="plotly-graph" style="height: 600px;"></div>
+  </div>
+</body>
+</main>
+</html>

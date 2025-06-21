@@ -1,0 +1,234 @@
+body {
+    background-color: #2e2e2e;
+    color: #fff;
+  }
+  
+
+main {
+    background: 
+        linear-gradient(rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.349)), /* dark overlay */
+        linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, rgba(226, 201, 141, .65) 100%), /* existing fade */
+        url("wci_banner.png");
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: cover;
+}
+
+html, body {
+    background-color: #2e2e2e;
+    color: #fff;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+/* Navbar styles */
+  .navbar {
+    background: linear-gradient(145deg, #111 0%, #1a1a1a 100%);
+    border-bottom: 2px solid #f7f4ea;
+  }
+
+  .navbar-brand {
+    color: #fcf7ea;
+    font-weight: bold;
+    font-size: 1.5rem;
+    padding-right: 10px;
+    
+  }
+
+  .navbar-brand:hover {
+    color: #fad46b;
+  }
+
+  .nav-link {
+    color: #f7f2e5 !important;
+    font-weight: 500;
+    transition: color 0.3s ease;
+  }
+
+  .nav-link:hover {
+    color: #f7cd5a !important;
+  }
+
+  .nav-item{
+      align-items: center;
+  }
+
+  .border-warning {
+  border-color: #eeebe4 !important;
+  }
+
+
+    #upload-btn {
+      background-color: #37c524;
+      border: none;
+      color: rgb(255, 255, 255);
+    }
+
+
+.autocomplete-dropdown {
+  max-height: 150px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ccc;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 1000;
+}
+.autocomplete-item:hover {
+  background: #eee;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+  background: rgba(0,0,0,0.65);
+  box-shadow: 0 0 80px 20px #000, 0 0 120px 40px #e2c98d44;
+  pointer-events: none;
+}
+
+body > .container,
+body > nav,
+body > main {
+  position: relative;
+  z-index: 1;
+}
+
+
+
+/* Updated form container for filtering section */
+.container {
+  max-width: 800px;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 2rem auto;
+  box-shadow: 0 0 20px rgba(226, 201, 141, 0.35);
+}
+
+/* Header */
+.container h1 {
+  color: #faf9f6;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+/* Labels */
+.form-group label,
+#sort-options .form-check-label {
+  animation: glow-text 3s infinite alternate;
+}
+
+/* Inputs & Dropdowns */
+.form-control {
+  background-color: #2e2e2e;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0.5rem;
+  margin-bottom: 0.75rem;
+  animation: glow-border 3s infinite alternate;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+/* Inline checkboxes */
+#sort-options .form-check-label {
+  color: #e2c98d;
+  margin-left: 0.25rem;
+  margin-right: 1rem;
+}
+
+#sort-options .form-check-input {
+  accent-color: #f7c948;
+  transform: scale(1.2);
+}
+
+/* Optional: Fancy animation on load */
+.container {
+  animation: fadeInUp 0.7s ease-in-out;
+}
+
+.tablecontainer{
+  position: relative;
+  z-index: 1;
+  margin: 5%;
+  margin-top: 0;
+  background: rgba(0, 0, 0, 0.65);
+  box-shadow: 0 0 20px rgba(226, 201, 141, 0.35);
+  border-radius: 5px;
+}
+table {
+  transition: ease,color .5s, linear 1s;
+  content: center;
+  animation: glow-border 3s infinite alternate;
+  border-radius: 12px;
+  color: #faf8f8;
+  padding: 2rem;
+}
+
+.table td{
+background-color: #303030;
+color: #f7f2e5;
+}
+
+.table thead th {
+color: #fffcf6;
+}
+.navbar {
+  animation: glow-border 3s infinite alternate;
+  animation: glow-text 3s infinite alternate;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-border {
+  0% {
+    border-color: #ffffff;
+    box-shadow: 0 0 5px #fff;
+  }
+  100% {
+    border-color: #aaaaaa;
+    box-shadow: 0 0 12px #a0a0a0;
+  }
+}
+
+@keyframes glow-nav-border {
+  0% {
+    border-color: #ffffff;
+    box-shadow: 0 0 5px #f3d880;
+  }
+  100% {
+    border-color: #ecdd87;
+    box-shadow: 0 0 20px #a0a0a0;
+  }
+}
+
+@keyframes glow-text {
+  0% {
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  }
+  100% {
+    color: #d3d0d0;
+    text-shadow: 0 0 4px rgba(170, 170, 170, 0.6);
+  }
+}

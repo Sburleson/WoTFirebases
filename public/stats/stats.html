@@ -1,0 +1,105 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World of Tanks Player Statistics</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="stats.css">
+  <!-- update the version number as needed -->
+  <script defer src="/__/firebase/11.8.1/firebase-app-compat.js"></script>
+  <!-- include only the Firebase features as you need -->
+  <script defer src="/__/firebase/11.8.1/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-database-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-functions-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-messaging-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-storage-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-analytics-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-remote-config-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-performance-compat.js"></script>
+  <!-- 
+    initialize the SDK after all desired features are loaded, set useEmulator to false
+    to avoid connecting the SDK to running emulators.
+  -->
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+</head>
+<main>
+
+<body>
+  <!-- Custom Navbar -->
+  <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand pr-3 border-right border-warning" href="#">Onslaught Stats</a>
+    <button class="navbar-toggler bg-dark text-light" type="button" data-toggle="collapse" data-target="#navbarNav">
+      <span class="navbar-toggler-icon">V</span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="../index.html">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="../stats/stats.html">Statistics</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="../graphs/graphs.html">Graphs</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+  <div class="container">
+    <h1 class="text-center">Player Statistics</h1>
+    <div class="form-group">  
+      <label for="search-player">Player:</label>
+      <div style="position: relative;">
+        <input id="search-player" class="form-control" placeholder="Enter player name">
+      </div>
+
+      <label for="search-tank">Tank:</label>
+      <div style="position: relative;">
+        <input id="search-tank" class="form-control" placeholder="Enter tank name">
+      </div>
+
+      <label for="search-map">Map:</label>
+      <div style="position: relative;">
+        <input id="search-map" class="form-control" placeholder="Enter map name">
+      </div>
+
+      <label for="sort-by">Sort By Stat:</label>
+      <select id="sort-by" class="form-control">
+        <option value="avg_kills">Avg Kills</option>
+        <option value="avg_damage">Avg Damage</option>
+        <option value="avg_assist">Avg Assist</option>
+        <option value="avg_wins">Win Percentage</option>
+        <option value="avg_comp7_prestige_points">Avg Prestige Points</option>
+        <option value="games_played">Games Played</option>
+      </select>
+
+      <div id = "sort-options" class="mt-3">
+      <div class="form-check form-check-inline mt-2">
+        <input class="form-check-input" type="checkbox" id="sort-name" value="name">
+        <label class="form-check-label" for="sort-name">Sort by Player</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" id="sort-map" value="map">
+        <label class="form-check-label" for="sort-map">Sort by Map</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" id="sort-tank" value="tank">
+        <label class="form-check-label" for="sort-tank">Sort by Tank</label>
+      </div>
+    </div>
+    </div>
+  </div>
+  <div class="tablecontainer">
+    <table class="table">
+      <tbody id="stats-table">
+        <!-- Player data will be inserted here by JavaScript -->
+      </tbody>
+    </table>
+    <div id="pagination-controls" class="d-flex justify-content-center my-3"></div>
+  <script src="stats.js"></script>
+</body>
+
+</main>
+</html>
+

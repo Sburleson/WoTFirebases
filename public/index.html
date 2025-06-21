@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World of Tanks Player Statistics</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="index.css">
+
+  <!-- Firebase SDKs -->
+  <script defer src="/__/firebase/11.8.1/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-database-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-functions-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-messaging-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-storage-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-analytics-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-remote-config-compat.js"></script>
+  <script defer src="/__/firebase/11.8.1/firebase-performance-compat.js"></script>
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+</head>
+<body>
+  <script type="module" defer src="app.js"></script>
+
+  <!-- Custom Navbar -->
+  <nav class="navbar navbar-expand-lg">
+    <a class="navbar-brand pr-3 border-right border-warning" href="#">Onslaught Stats</a>
+    <button class="navbar-toggler bg-dark text-light" type="button" data-toggle="collapse" data-target="#navbarNav">
+      <span class="navbar-toggler-icon">V</span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="../index.html">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="../stats/stats.html">Statistics</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="../graphs/graphs.html">Graphs</a>
+        </li>
+      </ul>
+    </div>
+    <div class="ml-auto">
+      <button id="login" class="btn btn-primary">Login</button>
+      <button id="logout" class="btn btn-secondary">Logout</button>
+  </nav>
+
+  <main>
+    <div class="container mt-4">
+      <!-- Drag and Drop Area -->
+      <div id="drop-area" class="drop-zone">
+        <h5 id="dropLabel">Drag &amp; drop files or folders here</h5>
+        <p>or click to select files</p>
+        <input type="file" id="fileElem" multiple accept=".wotreplay,.txt" directory style="display:none">
+        <button class="btn btn-primary" onclick="document.getElementById('fileElem').click();">Browse</button>
+        <div class="file-list"></div>
+        <button id="upload-btn" class="btn mt-3">Process Files</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
