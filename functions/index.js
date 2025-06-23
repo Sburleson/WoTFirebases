@@ -141,16 +141,17 @@ exports.graph = functions.https.onRequest(async (req, res) => {
     const query = `
       SELECT
         Players.tank,
-        ${x === 'winrate' ? 'AVG(CAST(Players.statistics.team = Players.statistics.winnerTeam AS INT64)) AS avg_winrate,' : `AVG(Players.statistics.${x}) AS avg_${x},`}
-        ${y === 'winrate' ? 'AVG(CAST(Players.statistics.team = Players.statistics.winnerTeam AS INT64)) AS avg_winrate,' : `AVG(Players.statistics.${y}) AS avg_${y},`}
-        ${z === 'winrate' ? 'AVG(CAST(Players.statistics.team = Players.statistics.winnerTeam AS INT64)) AS avg_winrate' : `AVG(Players.statistics.${z}) AS avg_${z}`}
+        COUNT(*) AS total_games,
+        ${x === 'winrate' ? 'AVG(CAST(Players.statistics.team = Players.statistics.winnerTeam AS INT64))*100 AS avg_winrate,' : `AVG(Players.statistics.${x}) AS avg_${x},`}
+        ${y === 'winrate' ? 'AVG(CAST(Players.statistics.team = Players.statistics.winnerTeam AS INT64))*100 AS avg_winrate,' : `AVG(Players.statistics.${y}) AS avg_${y},`}
+        ${z === 'winrate' ? 'AVG(CAST(Players.statistics.team = Players.statistics.winnerTeam AS INT64))*100 AS avg_winrate' : `AVG(Players.statistics.${z}) AS avg_${z}`}
       FROM
         \`wot-insight.wot_data.Players\` AS Players
       INNER JOIN
         \`wot-insight.wot_data.Games\` AS Games
       ON Players.game_id = Games.game_id
       WHERE
-        Games.map = @map
+        (@map = 'all' OR Games.map = @map)
       GROUP BY Players.tank
     `;
 

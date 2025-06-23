@@ -66,10 +66,13 @@ function PlotGraph(data, xField, yField, zField) {
     const xValues = data.map(s => s[xKey]);
     const yValues = data.map(s => s[yKey]);
     const zValues = data.map(s => s[zKey]);
+    const Games = data.map(s => s['total_games'] || 0);
     const ftanks = data.map(s => {
-    const parts = (s.tank || 'Unknown:Unknown Tank').split(':');
-    return parts.length > 1 ? parts[1] : parts[0];
-});
+        const tankName = (s.tank || 'Unknown:Unknown_Tank').split(':')[1] || 'Unknown_Tank';
+        const parts = tankName.split('_');
+        return parts.slice(1).join('_'); // removes the first part before the first underscore
+    });
+    
 
     console.log("xValues:", xValues);
     console.log("yValues:", yValues);
@@ -77,13 +80,13 @@ function PlotGraph(data, xField, yField, zField) {
 
     const trace1 = {
         x: xValues,
-        y: yValues,
-        z: zValues,
+        y: zValues,  // swapped here
+        z: yValues,  // swapped here
         type: 'scatter3d',
         mode: 'markers+text',
         marker: {
-            size: zValues.map(val => Math.sqrt(val) * 2), // Scaled for better visibility
-            color: zValues,
+            size: Games.map(val => Math.sqrt(val) * 5),
+            color: yValues,  // keep color based on original yValues if you want
             colorscale: [
                 ['0.0', 'rgb(165,0,38)'],
                 ['0.111111111111', 'rgb(215,48,39)'],
@@ -98,7 +101,7 @@ function PlotGraph(data, xField, yField, zField) {
             ],
             opacity: 0.9,
             colorbar: {
-                title: zField
+                title: yField
             }
         },
         text: ftanks,
@@ -111,6 +114,9 @@ function PlotGraph(data, xField, yField, zField) {
     };
 
     const layout = {
+        width: 1000,    // in pixles, match to container size in css or html
+        height: 1000,
+        autosize: false,
         title: "Tank Performance: 3D Visualization",
         paper_bgcolor: "rgba(0, 0, 0, 0.75)",
         plot_bgcolor: "rgba(233, 233, 233, 0.86)",
@@ -123,24 +129,30 @@ function PlotGraph(data, xField, yField, zField) {
                 gridcolor: "rgba(255, 255, 255, 0.2)"
             },
             yaxis: {
-                title: { text: yField, font: { color: "#ffffff" } },
+                title: { text: zField, font: { color: "#ffffff" } },
                 tickfont: { color: "#ffffff" },
                 showline: true,
                 linecolor: "#ffffff",
                 gridcolor: "rgba(255, 255, 255, 0.2)"
             },
             zaxis: {
-                title: { text: zField, font: { color: "#ffffff" } },
+                title: { text: yField, font: { color: "#ffffff" } },
                 tickfont: { color: "#ffffff" },
                 showline: true,
                 linecolor: "#ffffff",
                 gridcolor: "rgba(255, 255, 255, 0.2)"
             }
         },
-        margin: { l: 0, r: 0, t: 30, b: 0 }
+        margin: { l: 0, r: 0, t: 0, b: 0 }
     };
 
-    Plotly.newPlot('plotly-graph', [trace1], layout);
+    const config = {
+        displayModeBar: true, // or false to hide completely
+        displaylogo: false,   // remove the Plotly logo
+        modeBarButtonsToRemove: ['toImage'] // customize as needed
+      };
+      
+      Plotly.newPlot('plotly-graph', [trace1], layout, config);
 }
 /// heatmaps
 

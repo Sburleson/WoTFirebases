@@ -3,3 +3,5 @@ functions\node_modules
 MapStats
 ImportExcel
 Excels
+/node_modules
+/package-lock.json
