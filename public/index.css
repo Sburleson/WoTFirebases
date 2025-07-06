@@ -3,7 +3,7 @@ main {
     background: 
         linear-gradient(rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.349)), /* dark overlay */
         linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, rgba(226, 201, 141, .65) 100%), /* existing fade */
-        url("wci_banner.png");
+        url("../images/wci_banner.png");
     background-repeat: no-repeat;
     background-attachment: fixed;
     background-size: cover;

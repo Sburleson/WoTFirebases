@@ -54,28 +54,43 @@
   </nav>
 
   <div class="container">
-    <h1 class="text-center">3D Player Statistic Graph</h1>
+    <h1 class="text-center">Position & Shot Maps</h1>
     
-    <div class="form-group">
-      <label for="select-map">Select Map:</label>
-      <select id="select-map" class="form-control">
-        <option value="all">All Maps</option>
-        <!-- Add more maps -->
-      </select>
+    <div class="form-group d-flex align-items-center gap-3 flex-wrap">
+      <div id="map-select">
+        <select id="select-map" class="form-control">
+          <option value="all">All Maps</option>
+        </select>
+      </div>
 
-      <label for="show_positions">Positions</label>
-      <input class="form-check-input" type="checkbox" id="show_positions" value="Positions">
+      <div id="side-select">
+        <select id="select-side" class="form-control">
+          <option value="both">Both</option>
+          <option value="1">Side 1</option>
+          <option value="2">Side 2</option>
+        </select>
+      </div>
 
-      <label for="show_shots">Shots</label>
-      <input class="form-check-input" type="checkbox" id="show_shots" value="Shots">
+      <div class=" d-flex align-items-center gap-3 flex-wrap">
+          <input id="player-input" class="form-control" placeholder="Enter player name">
+      </div>
 
+      <div id="position-option" class="form-check d-flex align-items-center gap-1">
+        <input class="form-check-input" type="checkbox" id="show_positions" value="Positions">
+        <label class="form-check-label" for="show_positions">Positions</label>
+      </div>
 
-      <button id = "genButton" class="btn btn-primary mt-3">Generate Graph</button>
+      <div id="shot-option" class="form-check d-flex align-items-center gap-1">
+        <input class="form-check-input" type="checkbox" id="show_shots" value="Shots">
+        <label class="form-check-label" for="show_shots">Shots</label>
+      </div>
+
+      <button id="genButton" class="btn btn-primary">Generate Graph</button>
     </div>
   </div>
 
   <div class="container mt-4" id="plot">
-    <div id="plotly-graph" style="height: 1000px; width: 700px;"></div>
+    <div id="plotly-positions" style="height: 1000px; width: 700px;"></div>
   </div>
 </body>
 </main>

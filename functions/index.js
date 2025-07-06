@@ -7,6 +7,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const importReplayJson = require('./upload.js');
 const { BigQuery } = require('@google-cloud/bigquery');
+const { Storage } = require('@google-cloud/storage');
 
 admin.initializeApp();
 
@@ -92,6 +93,60 @@ exports.processReplay = onObjectFinalized(async (event) => {
 // get stats from BigQuery
 const bigquery = new BigQuery();
 
+const baseQuery = `
+  SELECT Players.positions as positions
+  FROM \`wot-insight.wot_data.Players\` AS Players
+  INNER JOIN \`wot-insight.wot_data.Games\` AS Games
+  ON Players.game_id = Games.game_id
+  WHERE Games.map = @map
+`;
+
+async function getMaps() {
+  const query = `SELECT DISTINCT map FROM \`wot-insight.wot_data.Games\``;
+  const [rows] = await bigquery.query(query);
+  return rows.map(row => row.map);
+}
+
+async function precomputeForMap(map) {
+  console.log(`Processing map: ${map}`);
+
+  const options = {
+    query: baseQuery,
+    params: { map },
+    types: { map: 'STRING' },
+    location: 'US',
+  };
+
+  const [rows] = await bigquery.query(options);
+  const tempFilePath = path.join(os.tmpdir(), `${map}.json`);
+  fs.writeFileSync(tempFilePath, JSON.stringify(rows));
+
+  const dest = `heatmaps/heatmap_${map}.json`;
+  await bucket.upload(tempFilePath, {
+    destination: dest,
+    metadata: { contentType: 'application/json' }
+  });
+
+  console.log(`✔ Cached: ${dest}`);
+}
+
+exports.precomputeHeatmaps = functions.https.onRequest(async (req, res) => {
+  try {
+    const maps = await getMaps();
+    for (const map of maps) {
+      try {
+        await precomputeForMap(map);
+      } catch (err) {
+        console.error(`Error caching ${map}`, err);
+      }
+    }
+    res.send('Heatmaps precomputed and cached successfully.');
+  } catch (err) {
+    console.error('Failed to precompute heatmaps', err);
+    res.status(500).send('Failed to precompute heatmaps');
+  }
+});
+
 exports.maps = functions.https.onRequest(async (req, res) => {
   try {
     const query = `
@@ -106,6 +161,90 @@ exports.maps = functions.https.onRequest(async (req, res) => {
   }
 }
 );
+
+
+exports.positions = functions.https.onRequest(async (req, res) => {
+  try {
+    const { map, name } = req.query;
+
+    if (!map) {
+      return res.status(400).json({ error: 'Missing required query parameter: map' });
+    }
+
+    if (name && typeof name !== 'string') {
+      return res.status(400).json({ error: 'Invalid query parameter: name must be a string' });
+    }
+
+    const isGlobalHeatmap = !name; // no name param means global
+    const cacheFileName = `Heatmaps/heatmap_${map}.json`;
+    const HeatmapBucket = admin.storage().bucket('wot-insight.firebasestorage.app');
+
+    if (isGlobalHeatmap) {
+      const [bucketExists] = await HeatmapBucket.exists();
+      if (!bucketExists) {
+        console.error(`Bucket does not exist: ${HeatmapBucket.name}`);
+        return res.status(500).json({ error: `Bucket does not exist: ${HeatmapBucket.name}` });
+      }
+
+      const file = HeatmapBucket.file(cacheFileName);
+      const exists = (await file.exists())[0];
+
+      if (exists) {
+        console.log(`Serving cached heatmap: ${cacheFileName}`);
+        const tempFilePath = path.join(os.tmpdir(), `${map}.json`);
+        await file.download({ destination: tempFilePath });
+        const cachedData = fs.readFileSync(tempFilePath, 'utf8');
+        return res.json(JSON.parse(cachedData));
+      }
+    }
+
+    // If not cached, query BigQuery
+    console.log(`Querying BigQuery for map: ${map}, player name: ${name}`);
+
+    const query = `
+      SELECT
+        Players.positions as positions
+      FROM
+        \`wot-insight.wot_data.Players\` AS Players
+      INNER JOIN
+        \`wot-insight.wot_data.Games\` AS Games
+      ON Players.game_id = Games.game_id
+      WHERE
+        Games.map = @map
+        AND (@name IS NULL OR Players.player_name = @name)
+        AND Players.statistics.POV = Players.statistics.team
+    `;
+
+    const options = {
+      query,
+      params: { map, name: name || null },
+      types: {
+        map: 'STRING',
+        name: 'STRING'
+      },
+      location: 'US',
+    };
+
+    const [rows] = await bigquery.query(options);
+
+    // Cache result if it's a global heatmap
+    if (isGlobalHeatmap) {
+      const tempFilePath = path.join(os.tmpdir(), `${map}.json`);
+      fs.writeFileSync(tempFilePath, JSON.stringify(rows));
+      await HeatmapBucket.upload(tempFilePath, {
+        destination: cacheFileName,
+        metadata: { contentType: 'application/json' }
+      });
+      console.log(`Cached heatmap saved: ${cacheFileName}`);
+    }
+
+    return res.json(rows);
+
+  } catch (err) {
+    console.error("Error in /positions:", err);
+    return res.status(500).json({ error: 'Failed to fetch positions data' });
+  }
+});
 
 exports.graph = functions.https.onRequest(async (req, res) => {
   try {

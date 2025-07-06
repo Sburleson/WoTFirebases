@@ -43,6 +43,10 @@
       {
         "source": "/graph",
         "function": "graph"
+      },
+      {
+        "source":"/positions",
+        "function": "positions"
       }
     ]
   },

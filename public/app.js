@@ -50,37 +50,105 @@ document.addEventListener('DOMContentLoaded', () => {
     fileListDiv.innerHTML = displayed.join('');
   });
 
-  uploadBtn.addEventListener('click', async () => {
-    const user = auth.currentUser;  // Use modular auth instance
+ uploadBtn.addEventListener('click', async () => {
+  const user = auth.currentUser;
 
-    if (!user) {
-      alert('You must be signed in to upload files.');
-      return;
+  if (!user) {
+    alert('You must be signed in to upload files.');
+    return;
+  }
+
+  if (filesToUpload.length === 0) {
+    alert('Please select a file first.');
+    return;
+  }
+
+  // Get references to your existing elements
+  const fileListDiv = document.querySelector('.file-list');
+  const fileElem = document.getElementById('fileElem');
+
+  // Create progress elements
+  const progressContainer = document.createElement('div');
+  progressContainer.style.cssText = `
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background:rgba(63, 59, 59, 0.76);
+  `;
+
+  const overallProgress = document.createElement('div');
+  overallProgress.innerHTML = `
+    <div style="margin-bottom: 10px; font-weight: bold;">Overall Progress:</div>
+    <div class="progress" style="height: 24px;">
+      <div id="overall-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0"
+        aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <div id="overall-text" style="text-align: center; margin-top: 5px;">0 / ${filesToUpload.length} files</div>
+  `;
+
+  progressContainer.appendChild(overallProgress);
+
+  // Insert progress bar inside the drop-area div, after upload button
+  const dropArea = document.getElementById('drop-area');
+  dropArea.appendChild(progressContainer);
+
+  // Get progress elements
+  const overallBar = document.getElementById('overall-bar');
+  const overallText = document.getElementById('overall-text');
+
+  let success = true;
+  let completedFiles = 0;
+
+  for (const file of filesToUpload) {
+    try {
+      const path = `uploads/${user.uid}/${file.name}`;
+      const storageRef = firebase.storage().ref(path);
+
+      // Upload with progress tracking
+      const uploadTask = storageRef.put(file);
+
+      await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed',
+          null, // No per-file progress
+          (error) => {
+            reject(error);
+          },
+          () => {
+            // File completed
+            completedFiles++;
+            const overallProgress = (completedFiles / filesToUpload.length) * 100;
+            overallBar.style.width = overallProgress + '%';
+            overallBar.setAttribute('aria-valuenow', overallProgress);
+            overallText.textContent = `${completedFiles} / ${filesToUpload.length} files`;
+            resolve();
+          }
+        );
+      });
+
+    } catch (err) {
+      success = false;
+      alert('Upload failed: ' + err.message);
+      break;
     }
+  }
 
-    if (filesToUpload.length === 0) {
-      alert('Please select a file first.');
-      return;
-    }
+  // Final status
+  if (success) {
+    //overallText.textContent = 'All uploads complete! ✅';
+    overallBar.style.width = '100%';
 
-    let success = true;
-    for (const file of filesToUpload) {
-      try {
-        const path = `uploads/${user.uid}/${file.name}`;
-        const storageRef = firebase.storage().ref(path);
-        await storageRef.put(file);
-      } catch (err) {
-        success = false;
-        alert('Upload failed: ' + err.message);
-      }
-    }
+    // Remove progress bar after 3 seconds
+    setTimeout(() => {
+      progressContainer.remove();
+    }, 3000);
+  } else {
+    // Remove progress bar on error
+    progressContainer.remove();
+  }
 
-    if (success) {
-      alert('All files uploaded to Firebase Storage!');
-    }
-
-    filesToUpload = [];
-    fileListDiv.innerHTML = '';
-    fileElem.value = ''; // reset input
-  });
+  filesToUpload = [];
+  fileListDiv.innerHTML = '';
+  fileElem.value = '';
+});
 });
