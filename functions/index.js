@@ -1,4 +1,5 @@
 const { onObjectFinalized } = require('firebase-functions/v2/storage');
+const { onRequest } = require('firebase-functions/v2/https');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const fs = require('fs');
@@ -43,6 +44,79 @@ async function verifyAuth(req, res) {
     return null;
   }
 }
+
+// Process all replays in the bucket, used by admin in event where need to reprocess all, but dont want to re-upload
+function chunkArray(array, size) {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+}
+
+exports.processAllReplays = onRequest(
+  { memory: '2GiB', timeoutSeconds: 540 },
+  async (req, res) => {
+    try {
+      const bucketName = 'wot-insight.firebasestorage.app';
+      const bucket = admin.storage().bucket(bucketName);
+
+      let [files] = await bucket.getFiles({ prefix: '' });
+      files = files.filter(file => file.name.endsWith('.wotreplay'));
+
+      console.log(`Found ${files.length} .wotreplay files to process.`);
+
+      const BATCH_SIZE = 10; // Adjust as needed for your memory/CPU
+      const fileChunks = chunkArray(files, BATCH_SIZE);
+      const allResults = [];
+
+      for (const chunk of fileChunks) {
+        // Process this chunk in parallel
+        const filePromises = chunk.map(file => (async () => {
+          try {
+            const filePath = file.name;
+            const tempFilePath = path.join(os.tmpdir(), path.basename(filePath));
+            await file.download({ destination: tempFilePath });
+
+            // Run your Rust script
+            const outputJsonPath = tempFilePath + '.json';
+            await new Promise((resolve, reject) => {
+              const proc = spawn(process.cwd() + '/Movement', [tempFilePath]);
+              proc.stdout.on('data', (data) => {});
+              proc.stderr.on('data', (data) => {});
+              proc.on('close', (code) => {
+                if (code === 0) resolve();
+                else reject(new Error('Script failed'));
+              });
+            });
+
+            if (fs.existsSync(outputJsonPath)) {
+              await importReplayJson(outputJsonPath);
+              fs.unlinkSync(outputJsonPath);
+            } else {
+              throw new Error(`Output JSON not found at: ${outputJsonPath}`);
+            }
+            fs.unlinkSync(tempFilePath);
+            return { file: file.name, status: 'success' };
+          } catch (err) {
+            return { file: file.name, status: 'error', error: err.message || String(err) };
+          }
+        })());
+
+        // Wait for this chunk to finish before starting the next
+        const results = await Promise.allSettled(filePromises);
+        allResults.push(...results);
+      }
+
+      res.json({
+        message: `Processed ${files.length} .wotreplay files in batches of ${BATCH_SIZE}.`,
+        results: allResults
+      });
+    } catch (err) {
+      console.error('Error processing all replays:', err);
+      res.status(500).send('Error processing all replays');
+    }
+  });
 
 // Get data from replays and process with Rust script, then upload to BigQuery
 exports.processReplay = onObjectFinalized(async (event) => {
@@ -102,9 +176,32 @@ const baseQuery = `
 `;
 
 async function getMaps() {
-  const query = `SELECT DISTINCT map FROM \`wot-insight.wot_data.Games\``;
-  const [rows] = await bigquery.query(query);
-  return rows.map(row => row.map);
+  const MapsBucket = admin.storage().bucket('wot-insight.firebasestorage.app');
+  const cacheFileName = 'MapsList/maps.json';
+  const [bucketExists] = await MapsBucket.exists();
+    if (!bucketExists) {
+      console.error(`Bucket does not exist: ${HeatmapBucket.name}`);
+      return res.status(500).json({ error: `Bucket does not exist: ${HeatmapBucket.name}` });
+    }
+
+    const file = HeatmapBucket.file(cacheFileName);
+    const exists = (await file.exists())[0];
+
+    if (exists) {
+      console.log(`Serving cached list: ${cacheFileName}`);
+      const tempFilePath = path.join(os.tmpdir(), `maps.json`);
+      await file.download({ destination: tempFilePath });
+      const cachedData = fs.readFileSync(tempFilePath, 'utf8');
+      return res.json(JSON.parse(cachedData));
+    }
+    else{
+      const query = `SELECT DISTINCT map FROM \`wot-insight.wot_data.Games\`
+                  ORDER BY map`;
+      const [rows] = await bigquery.query(query);
+      return rows.map(row => row.map);
+    }
+
+  
 }
 
 async function precomputeForMap(map) {
@@ -162,24 +259,67 @@ exports.maps = functions.https.onRequest(async (req, res) => {
 }
 );
 
+exports.shots = functions.https.onRequest(async (req, res) => {
+  try {
+      const { map, name } = req.query;
+
+      if (!map) {
+        return res.status(400).json({ error: 'Missing required query parameter: map' });
+      }
+
+      const query = `
+        SELECT
+          shots
+        FROM
+          \`wot-insight.wot_data.Games\`
+        WHERE
+          map = @map
+      `;
+
+      const options = {
+        query,
+        params: { map },
+        types: {
+          map: 'STRING'
+        },
+        location: 'US',
+      };
+
+      const [rows] = await bigquery.query(options);
+
+      return res.json(rows);
+
+    } catch (err) {
+      console.error("Error in /shots:", err);
+      return res.status(500).json({ error: 'Failed to fetch shots data' });
+    }
+});
 
 exports.positions = functions.https.onRequest(async (req, res) => {
   try {
-    const { map, name } = req.query;
+    const { map, name, cache } = req.query;
 
     if (!map) {
       return res.status(400).json({ error: 'Missing required query parameter: map' });
     }
 
-    if (name && typeof name !== 'string') {
-      return res.status(400).json({ error: 'Invalid query parameter: name must be a string' });
+    // Build WHERE conditions dynamically
+    let whereClause = 'Games.map = @map AND Players.statistics.POV = Players.statistics.team';
+    const params = { map };
+    
+    console.log(`Received query params: map=${map}, name=${name}, cache=${cache}`);
+    
+    if (typeof name === 'string' && name.trim() !== '' && name !== 'null') {
+      console.log(`Filtering by player name: ${name}`);
+      whereClause += ' AND Players.player_name = @name';
+      params.name = name;
     }
 
-    const isGlobalHeatmap = !name; // no name param means global
+    const isGlobalHeatmap = !name || name.trim() === '';
     const cacheFileName = `Heatmaps/heatmap_${map}.json`;
     const HeatmapBucket = admin.storage().bucket('wot-insight.firebasestorage.app');
 
-    if (isGlobalHeatmap) {
+    if (isGlobalHeatmap && cache === 'true') {
       const [bucketExists] = await HeatmapBucket.exists();
       if (!bucketExists) {
         console.error(`Bucket does not exist: ${HeatmapBucket.name}`);
@@ -198,9 +338,7 @@ exports.positions = functions.https.onRequest(async (req, res) => {
       }
     }
 
-    // If not cached, query BigQuery
-    console.log(`Querying BigQuery for map: ${map}, player name: ${name}`);
-
+    // Query BigQuery
     const query = `
       SELECT
         Players.positions as positions
@@ -210,18 +348,14 @@ exports.positions = functions.https.onRequest(async (req, res) => {
         \`wot-insight.wot_data.Games\` AS Games
       ON Players.game_id = Games.game_id
       WHERE
-        Games.map = @map
-        AND (@name IS NULL OR Players.player_name = @name)
-        AND Players.statistics.POV = Players.statistics.team
+        ${whereClause}
     `;
+
+    console.log(`Executing query ${query} with params:`, params);
 
     const options = {
       query,
-      params: { map, name: name || null },
-      types: {
-        map: 'STRING',
-        name: 'STRING'
-      },
+      params,
       location: 'US',
     };
 
@@ -370,10 +504,8 @@ exports.stats = functions.https.onRequest(async (req, res) => {
       ROUND(AVG(Players.statistics.damageAssistedRadio), 2) AS avg_damage_assisted_radio,
       ROUND(AVG(Players.statistics.damageDealt), 2) AS avg_damage_dealt,
       ROUND(AVG(Players.statistics.damageRecieved), 2) AS avg_damage_recieved,
-      ROUND(AVG(Players.statistics.directEnemyHits), 2) AS avg_direct_enemy_hits,
       ROUND(AVG(Players.statistics.kills), 2) AS avg_kills,
       ROUND(AVG(Players.statistics.lifetime), 2) AS avg_lifetime,
-      ROUND(AVG(Players.statistics.mileage), 2) AS avg_mileage,
       ROUND(AVG(Players.statistics.roleSkillUsed), 2) AS avg_role_skill_used,
       ROUND(AVG(Players.statistics.shots), 2) AS avg_shots,
       ROUND(AVG(Players.statistics.spotted), 2) AS avg_spotted
@@ -388,6 +520,8 @@ exports.stats = functions.https.onRequest(async (req, res) => {
       1, 2, 3
     ${sortbyClause}
   `;
+
+    console.log(`Executing query: ${query} with params:`, params);
 
     const [rows] = await bigquery.query({ query, params });
     res.json(rows);

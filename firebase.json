@@ -47,6 +47,14 @@
       {
         "source":"/positions",
         "function": "positions"
+      }, 
+      {
+        "source": "/shots",
+        "function": "shots"
+      },
+      {
+        "source": "/processAllReplays",
+        "function": "processAllReplays"
       }
     ]
   },

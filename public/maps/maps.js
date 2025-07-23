@@ -6,7 +6,7 @@ function init() {
 
     const mapSelect = document.getElementById('select-map');
     const GenButton = document.getElementById('genButton');
-    GenButton.addEventListener("click", FetchPositionData);
+    GenButton.addEventListener("click", FetchData);
 }
 // Fetch available maps for the select dropdown
 function PopulateMapSelect() {
@@ -24,12 +24,53 @@ function PopulateMapSelect() {
         });
 }
 
+function FetchData() {
+    const mapSelect = document.getElementById('select-map');
+    const map = mapSelect.value;
+    
+    const positions = document.getElementById('show_positions').checked;
+    console.log("show_positions:", positions);
+    const shots = document.getElementById('show_shots').checked;
+    console.log("show_shots:", shots);
+
+    if (positions) {
+        FetchPositionData();
+    }
+
+    if (shots) {
+        FetchShotsData();
+    }
+}
+
+function FetchShotsData() {
+    const mapSelect = document.getElementById('select-map');
+    const map = mapSelect.value;
+    let name = document.getElementById('player-input').value;
+    if (name === "") {
+        name = null; 
+    }
+    console.log("name:",name);
+    let url = '/shots?map=' + encodeURIComponent(map);
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log("FetchShotsData", data);
+            ShowShots(map, data);
+        })
+        .catch(err => {
+            console.error("Error fetching shots data:", err);
+        });
+}
+
 function FetchPositionData() {
     const mapSelect = document.getElementById('select-map');
     const map = mapSelect.value;
-    const name = document.getElementById('player-input').value;
-    console.log("name:",name);
-    let url = '/positions?map=' + encodeURIComponent(map)+ '&name=' + encodeURIComponent(name);
+    let name = document.getElementById('player-input').value;
+    if (name === "") {
+            name = null; 
+    }
+    console.log("name:",name);  
+    let url = '/positions?map=' + encodeURIComponent(map)+ '&name=' + encodeURIComponent(name) + '&cache=false';
     fetch(url)
         .then(response => response.json())
         .then(data => {
@@ -65,103 +106,305 @@ async function loadAndParseXML(map) {
   }
 }
 
+function ensurePlotContainer(id, label) {
+    let root = document.getElementById('plots-root');
+    let container = document.getElementById(id);
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'container mt-4';
+        container.id = id;
+        // Optionally add a label/title
+        if (label) {
+            const title = document.createElement('h3');
+            title.textContent = label;
+            container.appendChild(title);
+        }
+        const plotDiv = document.createElement('div');
+        plotDiv.id = id.replace('_plot', '-plotly');
+        plotDiv.style.height = '1100px';
+        plotDiv.style.width = '700px';
+        container.appendChild(plotDiv);
+        root.appendChild(container);
+        root.style.visibility = 'visible'; // Make sure the root is visible
+    }
+    return container.querySelector('div');
+}
+
+function removePlotContainer(id) {
+    const container = document.getElementById(id);
+    if (container) container.remove();
+}
+
+// Example usage in your plotting functions:
 async function ShowHeatmap(map, data) {
-    const heatmapContainer = document.getElementById('plotly-positions');
+    // Remove any existing heatmap container and controls
+    removePlotContainer('positions_plot');
+    const oldSlider = document.getElementById('heatmap-slider-container');
+    if (oldSlider) oldSlider.remove();
+    const oldToggle = document.getElementById('toggle-time-filter');
+    if (oldToggle) oldToggle.remove();
+
+    // Create heatmap container
+    const heatmapContainer = ensurePlotContainer('positions_plot', 'Positions Heatmap');
     heatmapContainer.innerHTML = '';
 
-    const allCoords = data.flatMap(item => {
-        const positions = JSON.parse(item.positions);
-        return Object.values(positions).map(pos => ({ x: pos.x, y: pos.y }));
-    });
+    // Create toggle button
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'toggle-time-filter';
+    toggleBtn.className = 'btn btn-outline-primary btn-sm mb-2';
+    toggleBtn.textContent = 'Enable Time Filter';
 
-    const xvalues = allCoords.map(coord => coord.x);
-    const yvalues = allCoords.map(coord => coord.y);
+    // Create and add time window controls inside the heatmap container
+    const sliderContainer = document.createElement('div');
+    sliderContainer.id = 'heatmap-slider-container';
+    sliderContainer.style.marginBottom = '10px';
+    sliderContainer.style.display = 'none'; // hidden by default
+    sliderContainer.innerHTML = `
+        <label for="heatmap-time">Time window (seconds): </label>
+        <button id="heatmap-time-down" type="button" class="btn btn-secondary btn-sm">-</button>
+        <span id="heatmap-time-value">0-10</span>
+        <button id="heatmap-time-up" type="button" class="btn btn-secondary btn-sm">+</button>
+    `;
 
-    console.log("ShowHeatmap", map, xvalues, yvalues);
-    console.log("Data length:", data.length);
-    //console.log("X range:", Math.min(...xvalues), "to", Math.max(...xvalues));
-    //console.log("Y range:", Math.min(...yvalues), "to", Math.max(...yvalues));
-    
-    // Get world-coordinate bounds for this map
-    const { xMin, yMin, xMax, yMax } = await loadAndParseXML(map);
-    console.log("Map bounds:", { xMin, yMin, xMax, yMax });
+    const timeValue = sliderContainer.querySelector('#heatmap-time-value');
+    const upBtn = sliderContainer.querySelector('#heatmap-time-up');
+    const downBtn = sliderContainer.querySelector('#heatmap-time-down');
 
-    // TOPOGRAPHIC STYLE - Contour lines
-    /*
-    const trace = {
-        x: xvalues,
-        y: yvalues,
-        type: 'histogram2dcontour',
-        colorscale: 'Hot',
-        contours: {
-            coloring: 'lines',    // Just contour lines, no fill
-            showlabels: true,     // Show density numbers on lines
-            labelfont: {
-                family: 'Arial',
-                size: 10,
-                color: 'white'
+    let startSec = 40;
+    const maxSec = 600;
+    const step = 10;
+    let timeFilterEnabled = false;
+
+    async function plotForWindow() {
+        let allCoords;
+        if (timeFilterEnabled) {
+            const endSec = startSec + step;
+            timeValue.textContent = `${startSec}-${endSec}`;
+            allCoords = data.flatMap(item => {
+                const positions = typeof item.positions === "string" ? JSON.parse(item.positions) : item.positions;
+                return Object.entries(positions)
+                    .filter(([time, pos]) => {
+                        const t = parseFloat(time);
+                        return t > startSec && t <= endSec;
+                    })
+                    .map(([time, pos]) => ({ x: pos.x, y: pos.y }));
+            });
+        } else {
+            // Show all positions
+            timeValue.textContent = 'All';
+            allCoords = data.flatMap(item => {
+                const positions = typeof item.positions === "string" ? JSON.parse(item.positions) : item.positions;
+                return Object.entries(positions)
+                    .filter(([time, pos]) => {
+                        const t = parseFloat(time);
+                        return t > 60;
+                    })
+                    .map(([time,pos]) => (time,{ x: pos.x, y: pos.y }));
+            });
+            console.log("All positions count:", allCoords.length);
+        }
+
+        const xvalues = allCoords.map(coord => coord.x);
+        const yvalues = allCoords.map(coord => coord.y);
+
+        const { xMin, yMin, xMax, yMax } = await loadAndParseXML(map);
+
+        const trace = {
+            x: xvalues,
+            y: yvalues,
+            type: 'histogram2dcontour',
+            colorscale: [
+                [0, 'rgba(0,0,0,0)'],
+                [0.001, 'rgba(86, 71, 224, 0.8)'],
+                [0.02, 'rgba(96, 184, 211, 0.5)'],
+                [0.1, 'rgba(34, 235, 175, 0.5)'],
+                [0.2, 'rgba(245, 226, 53, 0.69)'],
+                [0.5, 'rgba(235, 69, 138, 0.88)'],
+                [0.8, 'rgba(255, 0, 0, 0.6)'],
+                [1, 'rgba(255, 0, 0, 0)']
+            ],
+            contours: {
+                coloring: 'fill',
+                showlines: false
+            },
+            zmin: 0,
+            ncontours: 50,
+            nbinsx: 100,
+            nbinsy: 100,
+            showscale: true,
+            colorbar: {
+                title: 'Intensity',
+                titleside: 'right',
+                tickformat: '.4f'
             }
-        },
-        line: {
-            width: 2,
-            smoothing: 0.85       // Smooth the contour lines
-        },
-        nbinsx: 50,
-        nbinsy: 50,
-        showscale: false
+        };
+
+        const infoTrace = {
+            x: [null],
+            y: [null],
+            mode: 'markers',
+            marker: { opacity: 0 },
+            showlegend: true,
+            name: `Games: ${data.length}`,
+            hoverinfo: 'skip'
+        };
+
+        const layout = {
+            width: 1000,
+            height: 1000,
+            images: [
+                {
+                    source: `../images/${map}.png`,
+                    xref: "x",
+                    yref: "y",
+                    x: xMin,
+                    y: yMax,
+                    sizex: xMax - xMin,
+                    sizey: yMax - yMin,
+                    sizing: "stretch",
+                    opacity: 0.9,
+                    layer: "below"
+                }
+            ],
+            xaxis: {
+                range: [xMin, xMax],
+                fixedrange: true,
+                scaleanchor: 'y',
+                title: 'X Coordinate'
+            },
+            yaxis: {
+                range: [yMin, yMax],
+                fixedrange: true,
+                title: 'Y Coordinate'
+            },
+            margin: { t: 20, r: 20, b: 40, l: 40 },
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            showlegend: true
+        };
+
+        heatmapContainer.querySelectorAll('.js-plotly-plot').forEach(e => e.remove());
+        Plotly.newPlot(heatmapContainer, [trace, infoTrace], layout);
+    }
+
+    upBtn.onclick = async function () {
+        if (startSec + step < maxSec) {
+            startSec += step;
+            await plotForWindow();
+        }
+    };
+    downBtn.onclick = async function () {
+        if (startSec - step >= 0) {
+            startSec -= step;
+            await plotForWindow();
+        }
     };
 
-    */
+    toggleBtn.onclick = async function () {
+        timeFilterEnabled = !timeFilterEnabled;
+        sliderContainer.style.display = timeFilterEnabled ? '' : 'none';
+        toggleBtn.textContent = timeFilterEnabled ? 'Disable Time Filter' : 'Enable Time Filter';
+        await plotForWindow();
+    };
 
-    // ALTERNATIVE: Smooth filled contours (uncomment to try)
+    // Initial plot (time filter off)
+    await plotForWindow();
+    heatmapContainer.prepend(toggleBtn);
+    heatmapContainer.prepend(sliderContainer);
+}
 
-    const trace = {
-        x: xvalues,
-        y: yvalues,
-        type: 'histogram2dcontour',
-        colorscale: [
-            [0, 'rgba(0,0,0,0)'],
-            [0.001, 'rgba(86, 71, 224, 0.8)'],     // Visible low-intensity blue
-            [0.01, 'rgba(96, 184, 211, 0.8)'],
-            [0.1, 'rgba(34, 235, 175, 0.8)'],
-            [0.2, 'rgba(245, 226, 53, 0.69)'],
-            [0.5, 'rgba(235, 69, 138, 0.88)'],
-            [0.8, 'rgba(255, 0, 0, 0.6)'],         // More opaque red for high density
-            [1, 'rgba(255, 0, 0, 0)']
-        ],
-        contours: {
-            coloring: 'fill',
-            showlines: false
+async function ShowShots(map, data) {
+    const shotsContainer = ensurePlotContainer('shots_plot', 'Shots Map');
+    const shotsPlot = document.getElementById('shots_plot');
+    shotsPlot.style.visibility = 'visible';
+    shotsContainer.innerHTML = '';
+    let numGames = data.length;
+
+    const { xMin, yMin, xMax, yMax } = await loadAndParseXML(map);
+
+    const allCoords = data.flatMap(item => {
+        const shots = typeof item.shots === "string" ? JSON.parse(item.shots) : item.shots;
+        return Object.entries(shots)
+            .map(([_, shot]) => {
+                const origin = shot.shot_origin;
+                const target = shot.recieve_pos;
+                if ((origin.x === 0 && origin.y === 0) || (target.x === 0 && target.y === 0)) {
+                    return null;
+                }
+                return { shot_origin: origin, recieve_pos: target };
+            })
+            .filter(s => s !== null);
+    });
+
+    // Trace for shot lines
+    const linesTrace = {
+        x: allCoords.flatMap(s => [s.shot_origin.x, s.recieve_pos.x, null]), // null separates line segments
+        y: allCoords.flatMap(s => [s.shot_origin.y, s.recieve_pos.y, null]),
+        mode: 'lines',
+        type: 'scatter',
+        name: 'Shot Lines',
+        line: {
+            color: 'rgba(255, 0, 0, 0.05)',
+            width: 2
         },
-        zmin: 0,          // 👈 Essential for contrast near 0
-        ncontours: 50,    // 👈 More smooth gradation
-        nbinsx: 100,
-        nbinsy: 100,
-        showscale: true,
-        colorbar: {
-            title: 'Intensity',
-            titleside: 'right',
-            tickformat: '.4f'
+        hoverinfo: 'skip'
+    };
+
+    // Trace for origins
+    const originsTrace = {
+        x: allCoords.map(s => s.shot_origin.x),
+        y: allCoords.map(s => s.shot_origin.y),
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Shot Origins',
+        marker: {
+            size: 4,
+            color: 'blue',
+            opacity: 0.4,
+            symbol: 'circle'
         }
+    };
+
+    // Trace for receivers
+    const receiversTrace = {
+        x: allCoords.map(s => s.recieve_pos.x),
+        y: allCoords.map(s => s.recieve_pos.y),
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Shot Targets',
+        marker: {
+            size: 4,
+            color: 'red',
+            opacity: 0.4,
+            symbol: 'x'
+        }
+    };
+
+    const infoTrace = {
+        x: [null],
+        y: [null],
+        mode: 'markers',
+        marker: { opacity: 0 },
+        showlegend: true,
+        name: `Games: ${numGames}`,
+        hoverinfo: 'skip'
     };
 
     const layout = {
         width: 1000,
         height: 1000,
-        images: [
-            {
-                source: `../images/${map}.png`,
-                xref: "x",
-                yref: "y",
-                x: xMin,              
-                y: yMax,              
-                sizex: xMax - xMin,   
-                sizey: yMax - yMin,   
-                sizing: "stretch",
-                opacity: 0.9,         
-                layer: "below"
-            }
-        ],
+        images: [{
+            source: `../images/${map}.png`,
+            xref: "x",
+            yref: "y",
+            x: xMin,
+            y: yMax,
+            sizex: xMax - xMin,
+            sizey: yMax - yMin,
+            sizing: "stretch",
+            opacity: 0.9,
+            layer: "below"
+        }],
         xaxis: {
             range: [xMin, xMax],
             fixedrange: true,
@@ -174,19 +417,18 @@ async function ShowHeatmap(map, data) {
             title: 'Y Coordinate'
         },
         margin: { t: 20, r: 20, b: 40, l: 40 },
-        plot_bgcolor: 'rgba(0,0,0,0)',  // Transparent plot background
-        paper_bgcolor: 'rgba(0,0,0,0)'  // Transparent paper background
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        showlegend: true
     };
 
-    Plotly.newPlot(heatmapContainer, [trace], layout);
+    Plotly.newPlot(shotsContainer, [linesTrace, originsTrace, receiversTrace, infoTrace], layout);
 }
 
-async function ShowShots(map, data) {
-    const shots = data;
-
-    const filtered = shots.filter(shot => shot.shooter_name === "Mitsua_Student_Of_Draps");
-
-    const origin_xvalues = shots.map(shot => shot.shot_origin.x);
-    const origin_yvalues = shots.map(shot => shot.shot_origin.y);
-
+// Optionally, before drawing new plots, remove old ones:
+function clearPlots() {
+    removePlotContainer('positions_plot');
+    removePlotContainer('shots_plot');
 }
+
+// Call clearPlots() before generating new plots if needed.

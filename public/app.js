@@ -15,12 +15,35 @@ const auth = getAuth(app);
 const storage = getStorage(app);
 const provider = new GoogleAuthProvider();
 
+
 document.addEventListener('DOMContentLoaded', () => {
   const fileElem = document.getElementById('fileElem');
   const uploadBtn = document.getElementById('upload-btn');
   const fileListDiv = document.querySelector('.file-list');
   let filesToUpload = [];
   const MAX_DISPLAY = 5;
+
+  function ReUploadAll(){
+    fetch('/processAllReplays', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log("Re-upload initiated successfully:", data);
+      alert("Re-upload initiated successfully. Check console for details.");
+    })
+  }
+  window.ReUploadAll = ReUploadAll; // Expose to global scope for button click
+
+
 
   // Auth state listener
   onAuthStateChanged(auth, user => {
@@ -50,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fileListDiv.innerHTML = displayed.join('');
   });
 
- uploadBtn.addEventListener('click', async () => {
+  uploadBtn.addEventListener('click', async () => {
   const user = auth.currentUser;
 
   if (!user) {
@@ -100,50 +123,69 @@ document.addEventListener('DOMContentLoaded', () => {
   let success = true;
   let completedFiles = 0;
 
-  for (const file of filesToUpload) {
-    try {
-      const path = `uploads/${user.uid}/${file.name}`;
-      const storageRef = firebase.storage().ref(path);
+  // Create upload promises for parallel execution
+  const uploadPromises = filesToUpload.map(file => {
+    const path = `uploads/${user.uid}/${file.name}`;
+    const storageRef = firebase.storage().ref(path);
 
-      // Upload with progress tracking
-      const uploadTask = storageRef.put(file);
-
-      await new Promise((resolve, reject) => {
-        uploadTask.on('state_changed',
-          null, // No per-file progress
-          (error) => {
-            reject(error);
-          },
-          () => {
-            // File completed
-            completedFiles++;
-            const overallProgress = (completedFiles / filesToUpload.length) * 100;
-            overallBar.style.width = overallProgress + '%';
-            overallBar.setAttribute('aria-valuenow', overallProgress);
-            overallText.textContent = `${completedFiles} / ${filesToUpload.length} files`;
-            resolve();
-          }
-        );
+    // Check if file exists before uploading
+    return storageRef.getMetadata()
+      .then(() => {
+        // File exists, skip upload
+        console.log(`File already exists, skipping: ${file.name}`);
+        completedFiles++;
+        const overallProgress = (completedFiles / filesToUpload.length) * 100;
+        overallBar.style.width = overallProgress + '%';
+        overallBar.setAttribute('aria-valuenow', overallProgress);
+        overallText.textContent = `${completedFiles} / ${filesToUpload.length} files`;
+        return;
+      })
+      .catch(error => {
+        if (error.code === 'storage/object-not-found') {
+          // File does not exist, upload it
+          return new Promise((resolve, reject) => {
+            const uploadTask = storageRef.put(file);
+            uploadTask.on('state_changed',
+              null,
+              (error) => {
+                console.error('Upload error for', file.name, ':', error);
+                reject(error);
+              },
+              () => {
+                completedFiles++;
+                const overallProgress = (completedFiles / filesToUpload.length) * 100;
+                overallBar.style.width = overallProgress + '%';
+                overallBar.setAttribute('aria-valuenow', overallProgress);
+                overallText.textContent = `${completedFiles} / ${filesToUpload.length} files`;
+                console.log(`Completed: ${file.name}`);
+                resolve();
+              }
+            );
+          });
+        } else {
+          // Some other error
+          console.error('Error checking metadata for', file.name, ':', error);
+          throw error;
+        }
       });
+  });
 
-    } catch (err) {
-      success = false;
-      alert('Upload failed: ' + err.message);
-      break;
-    }
+  // Execute all uploads in parallel
+  try {
+    await Promise.all(uploadPromises);
+    success = true;
+  } catch (err) {
+    success = false;
+    alert('Upload failed: ' + err.message);
   }
 
   // Final status
   if (success) {
-    //overallText.textContent = 'All uploads complete! ✅';
     overallBar.style.width = '100%';
-
-    // Remove progress bar after 3 seconds
     setTimeout(() => {
       progressContainer.remove();
     }, 3000);
   } else {
-    // Remove progress bar on error
     progressContainer.remove();
   }
 
@@ -151,4 +193,5 @@ document.addEventListener('DOMContentLoaded', () => {
   fileListDiv.innerHTML = '';
   fileElem.value = '';
 });
+ 
 });

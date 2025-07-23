@@ -4,7 +4,7 @@ body {
   }
   
 
-main {
+body {
     background: 
         linear-gradient(rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.349)), /* dark overlay */
         linear-gradient(to bottom, rgba(255, 255, 255, 0) 70%, rgba(226, 201, 141, .65) 100%), /* existing fade */
@@ -15,7 +15,6 @@ main {
 }
 
 html, body {
-    background-color: #2e2e2e;
     color: #fff;
     height: 100%;
     margin: 0;
@@ -24,7 +23,7 @@ html, body {
     flex-direction: column;
 }
 
-.container#plot{
+#positions_plot, #shots_plot{
     max-width: 1050px;
     max-height: 70%;
     margin: 0 auto;
@@ -32,6 +31,10 @@ html, body {
     background-color: rgba(0, 0, 0, 0.7);
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(226, 201, 141, 0.35);
+}
+
+#plots-root{
+  visibility: hidden;
 }
 
 #position-option{
