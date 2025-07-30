@@ -227,6 +227,56 @@ async function precomputeForMap(map) {
   console.log(`✔ Cached: ${dest}`);
 }
 
+exports.createQuery = functions.https.onRequest(async (req, res) => {
+  // First verify authentication
+  const decodedToken = await verifyAuth(req, res);
+  if (!decodedToken) return;
+
+  try {
+    const { Q } = req.query;
+    
+    // Basic SQL injection protection
+    const forbiddenKeywords = [
+      'DELETE',
+      'DROP',
+      'INSERT',
+      'UPDATE',
+      'CREATE',
+      'ALTER',
+      'GRANT',
+      'EXECUTE'
+    ];
+
+    // Check for forbidden keywords
+    const hasBlockedKeywords = forbiddenKeywords.some(keyword => 
+      Q.toUpperCase().includes(keyword)
+    );
+
+    if (hasBlockedKeywords) {
+      console.warn(`Blocked potentially dangerous query from ${decodedToken.email}`);
+      return res.status(403).json({ 
+        error: 'Query contains forbidden operations' 
+      });
+    }
+
+    // Limit to specific dataset for additional security
+    if (!Q.includes('wot-insight.wot_data')) {
+      return res.status(403).json({ 
+        error: 'Query must operate on wot-insight.wot_data dataset' 
+      });
+    }
+
+    console.log(`Executing custom query from ${decodedToken.email}:`, Q);
+    const [rows] = await bigquery.query(Q);
+    res.json(rows);
+
+  } catch (err) {
+    console.error("Error in /createQuery:", err);
+    res.status(500).json({ error: 'Failed to execute query' });
+  }
+});
+
+
 exports.precomputeHeatmaps = functions.https.onRequest(async (req, res) => {
   try {
     const maps = await getMaps();

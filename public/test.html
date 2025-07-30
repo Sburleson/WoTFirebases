@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Graph with Three.js</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>3D Data Visualization</h3>
+        <p>Click and drag to rotate<br>
+        Scroll to zoom<br>
+        Right-click and drag to pan</p>
+    </div>
+
+    <script type="module">
+        // Import Three.js and OrbitControls from CDN
+        import * as THREE from './js/three.module.js';
+        import { OrbitControls } from './js/OrbitControls.js';
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x111111);
+        document.body.appendChild(renderer.domElement);
+
+        // OrbitControls setup
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 3;
+        controls.maxDistance = 100;
+
+        // Create grid helper
+        const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x444444);
+        scene.add(gridHelper);
+
+        // Create axes helper
+        const axesHelper = new THREE.AxesHelper(10);
+        scene.add(axesHelper);
+
+        // Sample 3D data points
+        const dataPoints = [
+            { x: 2, y: 3, z: 1, value: 10 },
+            { x: -3, y: 2, z: 4, value: 25 },
+            { x: 1, y: -2, z: -3, value: 15 },
+            { x: -1, y: 4, z: 2, value: 30 },
+            { x: 4, y: 1, z: -1, value: 20 },
+            { x: -2, y: -3, z: 3, value: 35 },
+            { x: 3, y: -1, z: -2, value: 12 },
+            { x: 0, y: 3, z: 4, value: 28 }
+        ];
+
+        // Create data point spheres
+        dataPoints.forEach((point, index) => {
+            // Create sphere geometry
+            const geometry = new THREE.SphereGeometry(0.2, 16, 16);
+            
+            // Color based on value
+            const hue = (point.value / 40) * 0.3; // Scale to red-green range
+            const material = new THREE.MeshBasicMaterial({ 
+                color: new THREE.Color().setHSL(hue, 1, 0.5)
+            });
+            
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.set(point.x, point.y, point.z);
+            scene.add(sphere);
+
+            // Add text label
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 64;
+            canvas.height = 32;
+            context.fillStyle = 'white';
+            context.font = '12px Arial';
+            context.fillText(`${point.value}`, 10, 20);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.set(point.x, point.y + 0.5, point.z);
+            sprite.scale.set(1, 0.5, 1);
+            scene.add(sprite);
+        });
+
+        // Add some connecting lines between points
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x555555 });
+        for (let i = 0; i < dataPoints.length - 1; i++) {
+            const geometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(dataPoints[i].x, dataPoints[i].y, dataPoints[i].z),
+                new THREE.Vector3(dataPoints[i + 1].x, dataPoints[i + 1].y, dataPoints[i + 1].z)
+            ]);
+            const line = new THREE.Line(geometry, lineMaterial);
+            scene.add(line);
+        }
+
+        // Position camera
+        camera.position.set(10, 10, 10);
+        camera.lookAt(0, 0, 0);
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 10, 5);
+        scene.add(directionalLight);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', onWindowResize, false);
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Optional: Add some interactivity
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function onMouseClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if (object.geometry && object.geometry.type === 'SphereGeometry') {
+                    // Highlight clicked sphere
+                    object.material.color.setHex(0xffffff);
+                    setTimeout(() => {
+                        const point = dataPoints.find(p => 
+                            Math.abs(p.x - object.position.x) < 0.1 &&
+                            Math.abs(p.y - object.position.y) < 0.1 &&
+                            Math.abs(p.z - object.position.z) < 0.1
+                        );
+                        if (point) {
+                            const hue = (point.value / 40) * 0.3;
+                            object.material.color.setHSL(hue, 1, 0.5);
+                        }
+                    }, 500);
+                }
+            }
+        }
+
+        window.addEventListener('click', onMouseClick, false);
+    </script>
+</body>
+</html>

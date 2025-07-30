@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="maps.css" />
 
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
   <script src="maps.js"></script>
   <!-- update the version number as needed -->
   <script defer src="/__/firebase/11.8.1/firebase-app-compat.js"></script>
@@ -75,6 +76,9 @@
         <input class="form-check-input" type="checkbox" id="show_shots" value="Shots">
         <label class="form-check-label" for="show_shots">Shots</label>
       </div>
+
+      <input type="checkbox" id="show_winrate" name="show_winrate">
+      <label for="show_winrate">Show Winrate Heatmap</label>
 
       <button id="genButton" class="btn btn-primary">Generate Graph</button>
     </div>

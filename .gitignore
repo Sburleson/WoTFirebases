@@ -5,3 +5,5 @@ ImportExcel
 Excels
 /node_modules
 /package-lock.json
+firestore-debug.log
+/.firebase

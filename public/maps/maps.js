@@ -40,6 +40,28 @@ function FetchData() {
     if (shots) {
         FetchShotsData();
     }
+
+    if (document.getElementById('show_winrate').checked) {
+    FetchMLData().then(data => showWinrateHeatmap(map, data));
+}
+}
+
+function FetchMLData() {
+    const mapSelect = document.getElementById('select-map');
+    const map = mapSelect.value;
+    
+    let url = '/ml?Q=';
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            console.log("FetchPositionData", data);
+            return data;
+        })
+        .catch(err => {
+            console.error("Error fetching position data:", err);
+        });
+        
+
 }
 
 function FetchShotsData() {
@@ -431,4 +453,133 @@ function clearPlots() {
     removePlotContainer('shots_plot');
 }
 
+const BIN_SIZE = 10;
+const MIN_SAMPLES = 100;
+const MIN_WINRATE = 0.75;
+const SPAWN_TIME = 30.0;
+const SPAWN_WINDOW = 2.0;
+
+// Add this new function
+async function showWinrateHeatmap(map, data) {
+    const winrateContainer = ensurePlotContainer('winrate_plot', 'Winrate Heatmap');
+    
+    function getAverageCoordInRange(positions, centerTime, timeWindow = 2.0) {
+        const minTime = centerTime - timeWindow;
+        const maxTime = centerTime + timeWindow;
+        const filtered = Object.entries(positions)
+            .filter(([t, _]) => minTime <= parseFloat(t) && parseFloat(t) <= maxTime)
+            .map(([_, pos]) => pos);
+            
+        if (filtered.length === 0) return null;
+        
+        const avgX = filtered.reduce((sum, p) => sum + p.x, 0) / filtered.length;
+        const avgY = filtered.reduce((sum, p) => sum + p.y, 0) / filtered.length;
+        return { x: avgX, y: avgY };
+    }
+
+    // Gather spawn coordinates
+    const spawnCoords = [];
+    const rowsWithSpawn = [];
+    
+    data.forEach(row => {
+        const positions = typeof row.positions === "string" ? JSON.parse(row.positions) : row.positions;
+        const spawnCoord = getAverageCoordInRange(positions, SPAWN_TIME, SPAWN_WINDOW);
+        if (spawnCoord) {
+            spawnCoords.push([spawnCoord.x, spawnCoord.y]);
+            rowsWithSpawn.push(row);
+        }
+    });
+
+    // Use ML5.js for KMeans clustering
+    const kmeans = await ml5.kmeans(spawnCoords, 2);
+    const spawnSides = kmeans.predict(spawnCoords);
+
+    // Filter to one side
+    const sideToAnalyze = 0;
+    const filteredRows = rowsWithSpawn.filter((_, i) => spawnSides[i] === sideToAnalyze);
+
+    // Determine bounds
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    filteredRows.forEach(row => {
+        const positions = typeof row.positions === "string" ? JSON.parse(row.positions) : row.positions;
+        Object.values(positions).forEach(coord => {
+            minX = Math.min(minX, coord.x);
+            minY = Math.min(minY, coord.y);
+            maxX = Math.max(maxX, coord.x);
+            maxY = Math.max(maxY, coord.y);
+        });
+    });
+
+    const gridWidth = Math.floor((maxX - minX) / BIN_SIZE) + 1;
+    const gridHeight = Math.floor((maxY - minY) / BIN_SIZE) + 1;
+
+    // Create heatmap arrays
+    const heatmapTotal = Array(gridHeight).fill().map(() => Array(gridWidth).fill(0));
+    const heatmapWins = Array(gridHeight).fill().map(() => Array(gridWidth).fill(0));
+
+    // Fill heatmap
+    filteredRows.forEach(row => {
+        const positions = typeof row.positions === "string" ? JSON.parse(row.positions) : row.positions;
+        const won = row.team === row.winnerTeam;
+        
+        Object.values(positions).forEach(coord => {
+            const x = Math.floor((coord.x - minX) / BIN_SIZE);
+            const y = Math.floor((coord.y - minY) / BIN_SIZE);
+            
+            if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
+                heatmapTotal[y][x]++;
+                if (won) heatmapWins[y][x]++;
+            }
+        });
+    });
+
+    // Calculate winrate map
+    const winrateMap = heatmapTotal.map((row, i) => 
+        row.map((total, j) => 
+            total >= MIN_SAMPLES ? heatmapWins[i][j] / total : null
+        )
+    );
+
+    // Create Plotly heatmap
+    const { xMin, yMin, xMax, yMax } = await loadAndParseXML(map);
+
+    const heatmapTrace = {
+        z: winrateMap,
+        type: 'heatmap',
+        colorscale: 'RdBu',
+        showscale: true,
+        zmin: 0,
+        zmax: 1,
+        colorbar: { title: 'Winrate' }
+    };
+
+    const layout = {
+        width: 1000,
+        height: 1000,
+        title: `Winrate Heatmap — Spawn Side ${sideToAnalyze}`,
+        images: [{
+            source: `../images/${map}.png`,
+            xref: "x",
+            yref: "y",
+            x: xMin,
+            y: yMax,
+            sizex: xMax - xMin,
+            sizey: yMax - yMin,
+            sizing: "stretch",
+            opacity: 0.5,
+            layer: "below"
+        }],
+        xaxis: {
+            range: [xMin, xMax],
+            title: 'X Coordinate'
+        },
+        yaxis: {
+            range: [yMin, yMax],
+            title: 'Y Coordinate'
+        }
+    };
+
+    Plotly.newPlot(winrateContainer, [heatmapTrace], layout);
+}
 // Call clearPlots() before generating new plots if needed.

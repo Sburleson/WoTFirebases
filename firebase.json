@@ -55,6 +55,10 @@
       {
         "source": "/processAllReplays",
         "function": "processAllReplays"
+      },
+      {
+        "source": "/ml",
+        "function": "createQuery"
       }
     ]
   },

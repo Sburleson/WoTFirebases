@@ -7,12 +7,8 @@
 
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="graphs.css" />
-
-  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
-  <script src="graphs.js"></script>
-  <!-- update the version number as needed -->
+  
   <script defer src="/__/firebase/11.8.1/firebase-app-compat.js"></script>
-  <!-- include only the Firebase features as you need -->
   <script defer src="/__/firebase/11.8.1/firebase-auth-compat.js"></script>
   <script defer src="/__/firebase/11.8.1/firebase-database-compat.js"></script>
   <script defer src="/__/firebase/11.8.1/firebase-firestore-compat.js"></script>
@@ -28,8 +24,11 @@
   -->
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 </head>
-<main>
 <body>
+<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+<script type="module" src="graphs.js"></script>
+
+<main>
   <nav class="navbar navbar-expand-lg">
     <a class="navbar-brand pr-3 border-right border-warning" href="#">Onslaught Stats</a>
     <button class="navbar-toggler bg-dark text-light" type="button" data-toggle="collapse" data-target="#navbarNav">
@@ -94,9 +93,8 @@
     </div>
   </div>
 
-  <div class="container mt-4" id="plot">
-    <div id="plotly-graph" style="height: 1000px; width: 700px;"></div>
-  </div>
-</body>
+  <div id="three"></div>
+
 </main>
+</body>
 </html>
